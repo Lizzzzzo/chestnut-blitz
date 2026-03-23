@@ -1,10 +1,15 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // 活动表
 type Activity struct {
-	ID           int       // 活动ID
+	// ID           int       // 活动ID
+	gorm.Model
 	Name         string    // 活动名称
 	Desc         string    // 活动描述
 	StartTime    time.Time // 活动开始时间
@@ -14,7 +19,8 @@ type Activity struct {
 }
 
 type Order struct {
-	ID         int // 订单ID
+	// ID         int // 订单ID
+	gorm.Model
 	ActivityID int // 订单关联的活动ID
 	UserID     int // 订单关联的用户ID
 	Status     int // 订单状态
