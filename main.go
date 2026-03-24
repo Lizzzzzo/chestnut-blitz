@@ -3,6 +3,7 @@ package main
 import (
 	"chestnut-blitz/model"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -16,4 +17,13 @@ func main() {
 		&model.Activity{},
 		&model.Order{},
 	)
+
+	r := gin.Default()
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": "ping success",
+		})
+	})
+
+	r.Run()
 }
