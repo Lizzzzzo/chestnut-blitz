@@ -1,9 +1,8 @@
 package main
 
 import (
+	"chestnut-blitz/handler"
 	"chestnut-blitz/model"
-
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
@@ -22,11 +21,7 @@ func main() {
 	)
 
 	r := gin.Default()
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "ping success",
-		})
-	})
+	r.POST("/seckill", handler.SecKill(db))
 
 	r.Run()
 }
