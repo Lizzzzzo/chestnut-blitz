@@ -11,10 +11,10 @@ import (
 )
 
 func main() {
-	dsn := "root:Liwenhui@tcp(127.0.0.1:3306)/chestnut-blitz?charset=utf8mb4&parserTime=True&loc=Local&timeout=10s&readTimeout=30s&writeTimeout=30s&maxAllowedPacket=0"
+	dsn := "root:lwh260119@tcp(127.0.0.1:3306)/chestnut_blitz?charset=utf8mb4&parseTime=True&loc=Local&timeout=10s&readTimeout=30s&writeTimeout=30s&maxAllowedPacket=0"
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
-		panic("failer to connect database")
+		panic("fail to connect database")
 	}
 	db.AutoMigrate(
 		&model.Activity{},
