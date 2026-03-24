@@ -23,5 +23,5 @@ type Order struct {
 	gorm.Model
 	ActivityID int // 订单关联的活动ID
 	UserID     int // 订单关联的用户ID
-	Status     int // 订单状态
+	Status     int // 订单状态 0代表待支付 1代表支付成功 2代表支付失败
 }
