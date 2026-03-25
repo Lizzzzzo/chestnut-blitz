@@ -68,7 +68,7 @@ func main() {
 	loadProductStockToRedis(ctx, db, rdb)
 
 	r := gin.Default()
-	r.POST("/seckill", handler.SecKill(db))
+	r.POST("/seckill", handler.SecKill(db, rdb))
 
 	r.Run()
 }

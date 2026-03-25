@@ -2,11 +2,15 @@ package handler
 
 import (
 	"chestnut-blitz/model"
+	"context"
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +19,7 @@ type SecKillReq struct {
 	UserID     int `json:"user_id"`
 }
 
-func SecKill(db *gorm.DB) gin.HandlerFunc {
+func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 绑定传参
 		var req SecKillReq
@@ -48,7 +52,28 @@ func SecKill(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		// 3、查询商品库存是否不为0
-		if act.ProductStock <= 0 {
+		// if act.ProductStock <= 0 {
+		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "活动商品已售罄!"})
+		// 	return
+		// }
+		ctx := context.Background()
+		queryKey := "stock:" + strconv.Itoa(req.ActivityID)
+		stockStr, err := rdb.Get(ctx, queryKey).Result()
+		if err != nil {
+			if err == redis.Nil {
+				c.JSON(http.StatusBadRequest, gin.H{"err": "商品库存不存在!"})
+				return
+			}
+			c.JSON(http.StatusBadRequest, gin.H{"err": "获取商品库存失败!"})
+			return
+		}
+		stock, err := strconv.Atoi(stockStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"err": "字符串转换失败!"})
+			return
+		}
+		fmt.Printf("目前商品总库存为: %d\n", stock)
+		if stock <= 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"err": "活动商品已售罄!"})
 			return
 		}
