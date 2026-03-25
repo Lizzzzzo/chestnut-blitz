@@ -19,6 +19,21 @@ type SecKillReq struct {
 	UserID     int `json:"user_id"`
 }
 
+const luaSecKill = `
+local stockKey = KEYS[1]
+local userKey = KEYS[2]
+local userID = ARGV[1]
+
+local stockRes = redis.call('GET', stockKey)
+local userRes = redis.call('GET', userKey)
+
+if redis.call('SISMEMBER', userKey, userID) == 1 then
+	return -1
+end
+
+return 1
+`
+
 func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 绑定传参
@@ -57,8 +72,8 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		// 	return
 		// }
 		ctx := context.Background()
-		queryKey := "stock:" + strconv.Itoa(req.ActivityID)
-		stockStr, err := rdb.Get(ctx, queryKey).Result()
+		stockKey := "stock:" + strconv.Itoa(req.ActivityID)
+		stockStr, err := rdb.Get(ctx, stockKey).Result()
 		if err != nil {
 			if err == redis.Nil {
 				c.JSON(http.StatusBadRequest, gin.H{"err": "商品库存不存在!"})
@@ -77,6 +92,14 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 			c.JSON(http.StatusBadRequest, gin.H{"err": "活动商品已售罄!"})
 			return
 		}
+
+		userKey := "user:" + strconv.Itoa(req.ActivityID)
+		luaRes, err := rdb.Eval(ctx, luaSecKill, []string{stockKey, userKey}, req.UserID).Result()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"err": "lua脚本获取失败!"})
+			return
+		}
+		fmt.Println("Lua 返回：", luaRes)
 
 		// 4、查询用户是否重复购买
 		var order model.Order
