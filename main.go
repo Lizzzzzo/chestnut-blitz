@@ -5,6 +5,7 @@ import (
 	"chestnut-blitz/model"
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,28 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
+
+func loadProductStockToRedis(ctx context.Context, db *gorm.DB, rdb *redis.Client) {
+	activityList := []model.Activity{}
+	err := db.Find(&activityList).Error
+	if err != nil {
+		fmt.Println("获取活动列表失败：", err)
+		return
+	}
+
+	successCount := 0
+	for _, v := range activityList {
+		key := "stock:" + strconv.Itoa(int(v.ID))
+		err = rdb.Set(ctx, key, v.ProductStock, 0).Err()
+		if err != nil {
+			fmt.Println("设置库存存储失败：", err)
+			return
+		}
+		successCount++
+	}
+
+	fmt.Printf("成功加载 %d 条活动 \n", successCount)
+}
 
 func main() {
 	// 1. 连接 MySQL
@@ -41,6 +64,8 @@ func main() {
 		return
 	}
 	fmt.Println("redis 连接成功! 返回：", pong)
+
+	loadProductStockToRedis(ctx, db, rdb)
 
 	r := gin.Default()
 	r.POST("/seckill", handler.SecKill(db))
