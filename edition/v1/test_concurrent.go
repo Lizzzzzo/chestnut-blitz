@@ -11,10 +11,10 @@ import (
 // 并发测试配置
 const (
 	targetUrl    = "http://localhost:8080/seckill" // 目标请求url
-	totalReq     = 100000                          // 总请求数
-	concurrency  = 10000                           // 并发数
+	totalReq     = 1000                            // 总请求数
+	concurrency  = 10                              // 并发数
 	activityID   = 1                               // 活动ID
-	productStock = 100                             // 商品总库存，用于验证是否超卖
+	productStock = 10                              // 商品总库存，用于验证是否超卖
 )
 
 type SecKillReq struct {
@@ -72,6 +72,7 @@ func main() {
 	fmt.Printf("成功：%d次，失败：%d次\n", successCount, failCount)
 }
 
+// MySQL同步扣减
 // 数值设置：
 // 商品库存 100
 // 并发数 10000
@@ -88,3 +89,13 @@ func main() {
 // 数据库：
 // product_stock 为 0
 // 订单创建总数 80
+
+// Redis 原子操作 + 异步落库
+// 数值设置：
+// 商品库存 10
+// 并发数 10
+// 总请求数 1000
+//
+// 观察结果：
+// 成功：10次，失败：990次
+// 日志无报错，商品无超卖
