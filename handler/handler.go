@@ -24,12 +24,11 @@ local stockKey = KEYS[1]
 local userKey = KEYS[2]
 local userID = ARGV[1]
 
-local stockRes = redis.call('GET', stockKey)
-local userRes = redis.call('GET', userKey)
-
 if redis.call('SISMEMBER', userKey, userID) == 1 then
 	return -1
 end
+
+redis.call('SADD', userKey, userID)
 
 return 1
 `
@@ -94,7 +93,7 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		}
 
 		userKey := "user:" + strconv.Itoa(req.ActivityID)
-		luaRes, err := rdb.Eval(ctx, luaSecKill, []string{stockKey, userKey}, req.UserID).Result()
+		luaRes, err := rdb.Eval(ctx, luaSecKill, []string{stockKey, userKey}, req.UserID).Int()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"err": "lua脚本获取失败!"})
 			return
@@ -102,15 +101,19 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		fmt.Println("Lua 返回：", luaRes)
 
 		// 4、查询用户是否重复购买
-		var order model.Order
-		err = db.Where("user_id = ? and activity_id = ?", req.UserID, req.ActivityID).
-			First(&order).Error
-		if err == nil {
+		// var order model.Order
+		// err = db.Where("user_id = ? and activity_id = ?", req.UserID, req.ActivityID).
+		// 	First(&order).Error
+		// if err == nil {
+		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "您已参加过该活动!"})
+		// 	return
+		// }
+		// if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "查询用户订单失败!"})
+		// 	return
+		// }
+		if luaRes == -1 {
 			c.JSON(http.StatusBadRequest, gin.H{"err": "您已参加过该活动!"})
-			return
-		}
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusBadRequest, gin.H{"err": "查询用户订单失败!"})
 			return
 		}
 
@@ -128,7 +131,7 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		}
 
 		// 6、创建订单
-		order = model.Order{
+		order := model.Order{
 			ActivityID: req.ActivityID,
 			UserID:     req.UserID,
 			ProductID:  act.ProductID,
