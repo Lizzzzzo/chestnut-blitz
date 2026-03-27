@@ -90,59 +90,10 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 			return
 		}
 
-		// 3、查询商品库存是否不为0
-		// if act.ProductStock <= 0 {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "活动商品已售罄!"})
-		// 	return
-		// }
-		// ctx := context.Background()
-		// stockKey := "stock:" + strconv.Itoa(req.ActivityID)
-		// stockStr, err := rdb.Get(ctx, stockKey).Result()
-		// if err != nil {
-		// 	if err == redis.Nil {
-		// 		c.JSON(http.StatusBadRequest, gin.H{"err": "商品库存不存在!"})
-		// 		return
-		// 	}
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "获取商品库存失败!"})
-		// 	return
-		// }
-		// stock, err := strconv.Atoi(stockStr)
-		// if err != nil {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "字符串转换失败!"})
-		// 	return
-		// }
-		// fmt.Printf("目前商品总库存为: %d\n", stock)
-		// if stock <= 0 {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "活动商品已售罄!"})
-		// 	return
-		// }
-
-		// 4、查询用户是否重复购买
-		// var order model.Order
-		// err = db.Where("user_id = ? and activity_id = ?", req.UserID, req.ActivityID).
-		// 	First(&order).Error
-		// if err == nil {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "您已参加过该活动!"})
-		// 	return
-		// }
-		// if !errors.Is(err, gorm.ErrRecordNotFound) {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "查询用户订单失败!"})
-		// 	return
-		// }
-
-		// 5、商品库存-1
-		// result := db.Model(&act).
-		// 	Where("product_stock > 0").
-		// 	Update("product_stock", gorm.Expr("product_stock - ?", 1))
-		// if result.Error != nil {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "商品库存扣减失败!"})
-		// 	return
-		// }
-		// if result.RowsAffected == 0 {
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "商品库存不足!"})
-		// 	return
-		// }
-
+		// lua脚本 原子性操作
+		// 查询商品库存是否不为0
+		// 查询用户是否重复购买
+		// 商品库存扣减
 		ctx := context.Background()
 		stockKey := "stock:" + strconv.Itoa(req.ActivityID)
 		userKey := "user:" + strconv.Itoa(req.ActivityID)
@@ -161,20 +112,7 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 			return
 		}
 
-		// 6、创建订单
-		// order := model.Order{
-		// 	ActivityID: req.ActivityID,
-		// 	UserID:     req.UserID,
-		// 	ProductID:  act.ProductID,
-		// 	Status:     0,
-		// }
-		// err = db.Create(&order).Error
-		// if err != nil {
-		// 	// 回滚库存
-		// 	db.Model(&act).Update("product_stock", gorm.Expr("product_stock + ?", 1))
-		// 	c.JSON(http.StatusBadRequest, gin.H{"err": "订单创建失败!"})
-		// 	return
-		// }
+		// 异步创建订单
 		go func() {
 			order := model.Order{
 				ActivityID: req.ActivityID,
@@ -203,11 +141,6 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 			}
 			fmt.Printf("用户%d订单创建成功!", req.UserID)
 		}()
-
-		// c.JSON(http.StatusOK, gin.H{
-		// 	"msg":      "下单成功",
-		// 	"order_id": order.ID,
-		// })
 
 		c.JSON(http.StatusOK, gin.H{
 			"msg": "排队中",
