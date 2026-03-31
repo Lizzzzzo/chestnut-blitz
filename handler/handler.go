@@ -2,6 +2,7 @@ package handler
 
 import (
 	"chestnut-blitz/model"
+	"chestnut-blitz/scripts"
 	"context"
 	"errors"
 	"fmt"
@@ -18,45 +19,6 @@ type SecKillReq struct {
 	ActivityID int `json:"activity_id"`
 	UserID     int `json:"user_id"`
 }
-
-const luaSecKill = `
-local stockKey = KEYS[1]
-local userKey = KEYS[2]
-local userID = ARGV[1]
-
-if redis.call('SISMEMBER', userKey, userID) == 1 then
-	return -1
-end
-
-local stock = redis.call('GET', stockKey)
-if not stock or tonumber(stock) <= 0 then
-	return 0
-end
-
-redis.call('DECR', stockKey)
-redis.call('SADD', userKey, userID)
-
-return 1
-`
-
-const luaReturnStock = `
-local stockKey = KEYS[1]
-local userKey = KEYS[2]
-local userID = ARGV[1]
-
-local stock = redis.call('GET', stockKey)
-if not stock then 
-	return -1
-end
-
-if redis.call('SISMEMBER', userKey, userID) == 1 then
-	redis.call('INCR', stockKey)
-	redis.call('SREM', userKey, userID)
-	return 1
-else
-	return 0
-end
-`
 
 func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -97,7 +59,7 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 		ctx := context.Background()
 		stockKey := "stock:" + strconv.Itoa(req.ActivityID)
 		userKey := "user:" + strconv.Itoa(req.ActivityID)
-		luaRes, err := rdb.Eval(ctx, luaSecKill, []string{stockKey, userKey}, req.UserID).Int()
+		luaRes, err := rdb.Eval(ctx, scripts.Seckill, []string{stockKey, userKey}, req.UserID).Int()
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"err": "lua脚本获取失败!"})
 			return
@@ -123,7 +85,7 @@ func SecKill(db *gorm.DB, rdb *redis.Client) gin.HandlerFunc {
 			err = db.Create(&order).Error
 			if err != nil {
 				// 回滚库存
-				luaRes, err = rdb.Eval(ctx, luaReturnStock, []string{stockKey, userKey}, req.UserID).Int()
+				luaRes, err = rdb.Eval(ctx, scripts.Rollback, []string{stockKey, userKey}, req.UserID).Int()
 				if err != nil {
 					fmt.Println("订单创建失败!")
 					return
