@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -37,8 +38,20 @@ func loadProductStockToRedis(ctx context.Context, db *gorm.DB, rdb *redis.Client
 }
 
 func main() {
+	// viper 加载配置文件
+	viper.SetConfigName("config")
+	viper.SetConfigType("yml")
+	viper.AddConfigPath("./config")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic("fail to load config")
+	}
+
 	// 1. 连接 MySQL
-	dsn := "root:lwh260119@tcp(127.0.0.1:3306)/chestnut_blitz?charset=utf8mb4&parseTime=True&loc=Local&timeout=10s&readTimeout=30s&writeTimeout=30s&maxAllowedPacket=0"
+	// dsn := "root:lwh260119@tcp(127.0.0.1:3306)/chestnut_blitz?charset=utf8mb4&parseTime=True&loc=Local&timeout=10s&readTimeout=30s&writeTimeout=30s&maxAllowedPacket=0"
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&timeout=10s&readTimeout=30s&writeTimeout=30s&maxAllowedPacket=0",
+		viper.GetString("mysql.user"), viper.GetString("mysql.password"),
+		viper.GetString("mysql.addr"), viper.GetString("mysql.port"), viper.GetString("mysql.db_name"))
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		panic("fail to connect database")
@@ -50,7 +63,8 @@ func main() {
 
 	// 2. 连接 Redis
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379",
+		// Addr:     "127.0.0.1:6379",
+		Addr:     viper.GetString("redis.addr") + ":" + viper.GetString("redis.port"),
 		Password: "",
 		DB:       0,
 	})

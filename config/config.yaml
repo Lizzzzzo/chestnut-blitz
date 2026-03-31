@@ -1,0 +1,17 @@
+# 服务配置
+server:
+  port: 8080
+
+# mysql 配置
+mysql:
+  addr: 127.0.0.1
+  port: 3306
+  user: root
+  password: lwh260119
+  db_name: chestnut_blitz
+
+# redis 配置
+redis:
+ addr: 127.0.0.1
+ port: 6379
+
